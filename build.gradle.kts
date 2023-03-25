@@ -34,7 +34,7 @@ allprojects {
     val testcontainersBom: String by project
     val protobufBom: String by project
 
-    val guava: String by project;
+    val guava: String by project
 
 
     apply(plugin = "io.spring.dependency-management")

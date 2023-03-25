@@ -8,39 +8,32 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.function.Supplier;
 
 public class Executor {
-
-    private final List<TestCase> cases;
-    public static Executor from(String className) throws ClassNotFoundException {
-        Class<?> clazz = Class.forName(className);
-        List<TestCase> cases = Parser.buildTestCases(clazz);
-        return new Executor(cases);
+    public static ExecutionStat launch (String className)  {
+        try {
+            List<TestCase> cases = Parser.buildTestCases(className);
+            return cases.
+                    stream().
+                    map(TestCase::run).
+                    reduce(ExecutionStat.ZERO, ExecutionStat::apply);
+        } catch (Exception e) {
+            return ExecutionStat.SINGLE_FAIL;
+        }
     }
 
-    private Executor(List<TestCase> cases) {
-        this.cases = cases;
-    }
-
-    public ExecutionStat launch() {
-        return cases.
-                stream().
-                map(TestCase::safeRun).
-                reduce(ExecutionStat.ZERO, ExecutionStat::apply);
-    }
 }
 
 class Parser{
-    public static List<TestCase> buildTestCases(String className) throws ClassNotFoundException {
+    public static List<TestCase> buildTestCases(String className) throws Exception {
         Class<?> clazz = Class.forName(className);
         var methods = clazz.getDeclaredMethods();
         var beforeHooks = pickMethodByAnnotation(methods, Before.class);
         var tests = pickMethodByAnnotation(methods, Test.class);
         var afterHooks = pickMethodByAnnotation(methods, After.class);
-        var constructorNoArgs = findConstructorNoArgs(clazz.getConstructors());
+        var constructorNoArgs = prepareConstructorNoArgs(clazz);
         if (constructorNoArgs.isEmpty()) {
-            //
+            throw new IllegalArgumentException("constructor without args is required");
         }
 
         return TestCase.builder().
@@ -58,17 +51,20 @@ class Parser{
                 toList();
     }
 
-    private static Optional<Constructor<?>> findConstructorNoArgs(Constructor<?>[] constructors) {
-       return Arrays.
-               stream(constructors).
-               filter(c -> c.getParameterCount() == 0).
-               findAny();
+    private static Optional<Constructor<?>> prepareConstructorNoArgs(Class<?> clazz) {
+        try {
+            var constructor = clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return Optional.of(constructor);
+        } catch(Exception e) {
+            return Optional.empty();
+        }
     }
 }
 
 class TestCase {
     private final List<Method> beforeHooks;
-    private final Optional<Method> test;
+    private final Method test;
     private final List<Method> afterHooks;
     private final Constructor<?> constructor;
 
@@ -99,20 +95,13 @@ class TestCase {
         }
 
         public List<TestCase> build() {
-            if (tests.isEmpty()) {
-                if (beforeHooks.isEmpty() && afterHooks.isEmpty()) {
-                    return Collections.emptyList();
-                }
-                return List.of(new TestCase(constructor, beforeHooks, Optional.empty(),afterHooks));
-            }
-
             return tests.
                     stream().
-                    map((test) -> new TestCase(constructor, beforeHooks, Optional.of(test), afterHooks)).
+                    map((test) -> new TestCase(constructor, beforeHooks, test, afterHooks)).
                     toList();
         }
     }
-    private TestCase(Constructor<?> constructor, List<Method> beforeHooks, Optional<Method> test, List<Method> afterHooks){
+    private TestCase(Constructor<?> constructor, List<Method> beforeHooks, Method test, List<Method> afterHooks){
         this.beforeHooks = beforeHooks;
         this.test = test;
         this.afterHooks = afterHooks;
@@ -123,19 +112,44 @@ class TestCase {
         return new Builder();
     }
 
-    public ExecutionStat safeRun() {
+    public ExecutionStat run() {
+        var obj = constructObject();
+        if (obj.isEmpty()) return ExecutionStat.SINGLE_FAIL;
+
+        var testObj = obj.get();
+        var stat = safeMethodsExecution(beforeHooks, testObj);
+        if (!stat.isFailed()) {
+            stat = stat.apply(safeMethodExecution(test, testObj));
+        }
+        stat = stat.apply( safeMethodsExecution(afterHooks, testObj));
+
+        return stat.isFailed() ? ExecutionStat.SINGLE_FAIL : ExecutionStat.SINGLE_SUCCESS;
+    }
+
+
+    private Optional<Object> constructObject() {
         try {
             Object obj = constructor.newInstance();
-            beforeHooks.forEach(
-                    method -> {
-                        Ob
-                    }
-            );
+            return Optional.of(obj);
+        }catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+    private ExecutionStat safeMethodsExecution (List<Method> methods, Object obj) {
+        return methods.
+                stream().
+                map(method -> safeMethodExecution(method, obj)).
+                reduce(ExecutionStat.ZERO, ExecutionStat::apply);
+    }
 
-
-        } catch (Exception e) {
+    private ExecutionStat safeMethodExecution(Method method, Object obj) {
+        try {
+            method.setAccessible(true);
+            method.invoke(obj);
+        }catch (Exception e) {
             return ExecutionStat.SINGLE_FAIL;
         }
+
         return ExecutionStat.SINGLE_SUCCESS;
     }
 }

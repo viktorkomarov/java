@@ -20,4 +20,19 @@ public class ExecutionStat {
                 successfulCases+stat.successfulCases
         );
     }
+    public boolean isFailed() {
+        return failedCases > 0;
+    }
+
+    public long getAllCases() {
+        return allCases;
+    }
+
+    public long getFailedCases() {
+        return failedCases;
+    }
+
+    public long getSuccessfulCases() {
+        return successfulCases;
+    }
 }
