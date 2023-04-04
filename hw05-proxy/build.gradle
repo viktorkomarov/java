@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+}
+
+group 'ru.otus'
+
+repositories {
+    mavenCentral()
+}
+
+test {
+    useJUnitPlatform()
+}
