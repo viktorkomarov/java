@@ -31,7 +31,7 @@ class TestImpl implements TestLoggingInterface {
 
 public class Main {
     public static void main(String[] args) {
-        TestLoggingInterface test = IoCTestLoggingInterface.of(new TestImpl());
+        TestLoggingInterface test = IoCLog.of(new TestImpl(), TestLoggingInterface.class);
         test.calculation(56);
         test.calculation(56,10, 100);
         test.calculation(50, "Show ME");

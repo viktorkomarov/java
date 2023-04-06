@@ -8,23 +8,22 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-public class IoCTestLoggingInterface {
-    private IoCTestLoggingInterface(){};
+public class IoCLog {
+    private IoCLog(){};
 
-    public static TestLoggingInterface of(TestLoggingInterface internal) {
-        return (TestLoggingInterface) Proxy.newProxyInstance(
-                IoCTestLoggingInterface.class.getClassLoader(),
-                new Class<?>[]{TestLoggingInterface.class},
-                new TestLoggingHandler(
-                        getMethodsWithAnnotation(internal.getClass(), Log.class),
-                        internal
-                )
-        );
+    @SuppressWarnings("unchecked")
+    public static <T>T of(T internal, Class<T> clazz) {
+        return (T) Proxy.newProxyInstance(
+                    IoCLog.class.getClassLoader(),
+                    new Class<?>[]{clazz},
+                    new LoggingHandler<T>(
+                            getMethodsWithAnnotation(internal.getClass(), Log.class),
+                            internal
+                    )
+            );
+
     }
     private static List<Method> getMethodsWithAnnotation(Class<?> clazz,Class<? extends Annotation> annotation) {
         return  Arrays.stream(clazz.getDeclaredMethods()).
@@ -32,10 +31,10 @@ public class IoCTestLoggingInterface {
                 toList();
     }
 
-    static class TestLoggingHandler implements InvocationHandler {
+    static class LoggingHandler<T> implements InvocationHandler {
         private final List<Method> logMarkedMethods;
-        private final TestLoggingInterface inner;
-        public TestLoggingHandler(List<Method> logMethods, TestLoggingInterface inner) {
+        private final T inner;
+        public LoggingHandler(List<Method> logMethods, T inner) {
             this.logMarkedMethods = logMethods;
             this.inner = inner;
         }
