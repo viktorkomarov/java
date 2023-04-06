@@ -13,16 +13,14 @@ import java.util.List;
 public class IoCLog {
     private IoCLog(){};
 
-    @SuppressWarnings("unchecked")
     public static <T>T of(T internal, Class<T> clazz) {
-        return (T) Proxy.newProxyInstance(
-                    IoCLog.class.getClassLoader(),
-                    new Class<?>[]{clazz},
-                    new LoggingHandler<T>(
-                            getMethodsWithAnnotation(internal.getClass(), Log.class),
-                            internal
-                    )
-            );
+        return clazz.cast(Proxy.newProxyInstance(
+                IoCLog.class.getClassLoader(),
+                new Class<?>[]{clazz},
+                new LoggingHandler<T>(
+                        getMethodsWithAnnotation(internal.getClass(), Log.class),
+                        internal
+                )));
 
     }
     private static List<Method> getMethodsWithAnnotation(Class<?> clazz,Class<? extends Annotation> annotation) {
