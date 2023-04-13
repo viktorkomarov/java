@@ -4,6 +4,7 @@ include ("hw02-generics")
 include ("hw03-test-framework")
 include("hw04-gc")
 include("hw05-proxy")
+include("hw06-atm")
 
 
 pluginManagement {
