@@ -8,6 +8,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.function.Function;
 
 public class Executor {
     public static ExecutionStat launch (String className)  {
@@ -153,4 +154,3 @@ class TestCase {
         return ExecutionStat.SINGLE_SUCCESS;
     }
 }
-
